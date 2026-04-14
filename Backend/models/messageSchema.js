@@ -1,35 +1,48 @@
-import mongoose from "mongoose"
-import validator from "validator"
+import { DataTypes } from 'sequelize';
+import { sequelize } from '../database/dbConnection.js';
+import validator from "validator";
 
-
-
-const messageSchema = new mongoose.Schema({
-    firstName:{
-        type: String,
-        required: true,
-        minLength:[3, "First Name must contain atleast 3 characters!"]
+export const Message = sequelize.define('Message', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
     },
-    lastName:{
-        type: String,
-        required: true,
-        minLength:[3, "Last Name must contain atleast 3 characters!"]
+    firstName: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            len: [3, 255]
+        }
     },
-    email:{
-        type: String,
-        required: true,
-        validate : [validator.isEmail, "Please provide a valid Email!"]
+    lastName: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            len: [3, 255]
+        }
     },
-    phone:{
-        type: String,
-        required: true,
-        maxLength:[10, "Phone number must contain exact 10 digits!"],
-        minLength:[10, "Phone number must contain exact 10 digits!"]
+    email: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            isEmail: true
+        }
     },
-    message:{
-        type: String,
-        required: true,
-        minLength:[10, "Message must contain atleast 10 characters!"]
+    phone: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            len: [10, 10]
+        }
     },
-})
-
-export const Message = mongoose.model("Message",messageSchema)
+    message: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+        validate: {
+            len: [10, 5000]
+        }
+    }
+}, {
+    timestamps: true
+});

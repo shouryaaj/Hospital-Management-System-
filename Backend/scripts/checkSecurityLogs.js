@@ -1,5 +1,5 @@
-import mongoose from "mongoose";
 import dotenv from "dotenv";
+import { sequelize } from "../database/dbConnection.js";
 import { SecurityLog } from "../models/securityLog.js";
 
 dotenv.config({ path: "./config/config.env" });
@@ -8,11 +8,16 @@ const emailArg = process.argv[2];
 
 async function main() {
   try {
-    await mongoose.connect(process.env.MONGO_URI, { dbName: "Life_Care_Hospital" });
+    await sequelize.authenticate();
     console.log("Connected to Database");
 
     const match = emailArg ? { email: emailArg } : {};
-    const logs = await SecurityLog.find(match).sort({ createdAt: -1 }).limit(50).lean();
+    const logs = await SecurityLog.findAll({
+      where: match,
+      order: [['createdAt', 'DESC']],
+      limit: 50,
+      raw: true
+    });
 
     if (emailArg) {
       console.log(`\nSecurity logs for: ${emailArg}`);
@@ -33,7 +38,7 @@ async function main() {
       console.log(`\n#${i + 1} [${ts}] ${l.type}`);
       if (l.email) console.log(`  email: ${l.email}`);
       if (l.ip) console.log(`  ip: ${l.ip}`);
-      if (l.user) console.log(`  user: ${l.user}`);
+      if (l.userId) console.log(`  userId: ${l.userId}`);
       if (l.message) console.log(`  message: ${l.message}`);
     });
 

@@ -1,5 +1,5 @@
-import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import { sequelize } from '../database/dbConnection.js';
 import { User } from '../models/userSchema.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -17,16 +17,14 @@ async function main() {
     process.exit(1);
   }
 
-  const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/Life_Care_Hospital';
-
   try {
-    await mongoose.connect(mongoUri, { dbName: undefined });
-    const res = await User.updateOne(
-      { email },
-      { $set: { loginAttempts: 0 }, $unset: { lockUntil: '' } }
+    await sequelize.authenticate();
+    const [updatedCount] = await User.update(
+      { loginAttempts: 0, lockUntil: null },
+      { where: { email } }
     );
 
-    if (res.matchedCount === 0) {
+    if (updatedCount === 0) {
       console.error(`No user found with email: ${email}`);
       process.exit(2);
     }
@@ -37,7 +35,7 @@ async function main() {
     console.error('Failed to unlock user:', err?.message || err);
     process.exit(3);
   } finally {
-    await mongoose.connection.close().catch(() => {});
+    await sequelize.close().catch(() => { });
   }
 }
 

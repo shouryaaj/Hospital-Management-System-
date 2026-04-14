@@ -35,11 +35,13 @@ export const postAppointment = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler("Please Fill Full Form!", 400))
     }
 
-    const isConflict = await User.find({
-        firstName: doctor_firstName,
-        lastName: doctor_lastName,
-        role: "Doctor",
-        doctrDptmnt: department
+    const isConflict = await User.findAll({
+        where: {
+            firstName: doctor_firstName,
+            lastName: doctor_lastName,
+            role: "Doctor",
+            doctrDptmnt: department
+        }
     })
 
     if (isConflict.length === 0) {
@@ -50,8 +52,8 @@ export const postAppointment = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler("Doctors conflict! Please contact through email or phone.", 404))
     }
 
-    const doctorId = isConflict[0]._id;
-    const patientId = req.user._id;
+    const doctorId = isConflict[0].id;
+    const patientId = req.user.id;
 
     const appointment = await Appointment.create({
         firstName,
@@ -63,10 +65,8 @@ export const postAppointment = catchAsyncErrors(async (req, res, next) => {
         gender,
         appointment_date,
         department,
-        doctor: {
-            firstName: doctor_firstName,
-            lastName: doctor_lastName
-        },
+        doctor_firstName,
+        doctor_lastName,
         hasVisited,
         address,
         doctorId,
@@ -82,7 +82,7 @@ export const postAppointment = catchAsyncErrors(async (req, res, next) => {
 
 
 export const getAllAppointments = catchAsyncErrors(async (req, res, next) => {
-    const appointments = await Appointment.find();
+    const appointments = await Appointment.findAll();
     res.status(200).json({
         success: true,
         appointments
@@ -90,18 +90,14 @@ export const getAllAppointments = catchAsyncErrors(async (req, res, next) => {
 })
 
 
-export const updateAppointmentStatus = catchAsyncErrors(async (req,res,next)=>{
-    const {id} = req.params;
- 
-       let appointment = await Appointment.findById(id)
-    if(!appointment){
-       return next(new ErrorHandler("Appointment not found!", 404)) 
+export const updateAppointmentStatus = catchAsyncErrors(async (req, res, next) => {
+    const { id } = req.params;
+
+    let appointment = await Appointment.findByPk(id)
+    if (!appointment) {
+        return next(new ErrorHandler("Appointment not found!", 404))
     }
-    appointment = await Appointment.findByIdAndUpdate(id, req.body, {
-        new : true,
-        runValidators: true,
-        useFindAndModify: false
-    } )
+    await appointment.update(req.body);
     res.status(200).json({
         success: true,
         message: "Appointment Status Updated!",
@@ -110,15 +106,15 @@ export const updateAppointmentStatus = catchAsyncErrors(async (req,res,next)=>{
 })
 
 
-export const deleteAppointment = catchAsyncErrors(async(req,res,next)=>{
-    const {id} = req.params;
-       let appointment = await Appointment.findById(id)
-       if(!appointment){
-        return next(new ErrorHandler("Appointment not found!", 404)) 
-     }
+export const deleteAppointment = catchAsyncErrors(async (req, res, next) => {
+    const { id } = req.params;
+    let appointment = await Appointment.findByPk(id)
+    if (!appointment) {
+        return next(new ErrorHandler("Appointment not found!", 404))
+    }
 
-     await appointment.deleteOne();
-     res.status(200).json({
+    await appointment.destroy();
+    res.status(200).json({
         success: true,
         message: "Appointment Deleted!",
     })

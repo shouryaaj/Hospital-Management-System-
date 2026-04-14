@@ -1,91 +1,90 @@
-import mongoose from "mongoose"
-import validator from "validator"
-import bcrypt from "bcrypt"
-import jwt from "jsonwebtoken"
+import { DataTypes } from 'sequelize';
+import { sequelize } from '../database/dbConnection.js';
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
-const userSchema = new mongoose.Schema({
-    firstName:{
-        type: String,
-        required: true,
-        minLength:[3, "First Name must contain atleast 3 characters!"]
+export const User = sequelize.define('User', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
     },
-    lastName:{
-        type: String,
-        required: true,
-        minLength:[2, "Last Name must contain atleast 2 characters!"]
+    firstName: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: { len: [3, 255] }
     },
-    email:{
-        type: String,
-        required: true,
-        validate : [validator.isEmail, "Please provide a valid Email!"]
+    lastName: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: { len: [2, 255] }
     },
-    phone:{
-        type: String,
-        required: true,
-        maxLength:[10, "Phone number must contain exact 10 digits!"],
-        minLength:[10, "Phone number must contain exact 10 digits!"]
+    email: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
+        validate: { isEmail: true }
     },
-    aadhar:{
-        type: String,
-        required: true,
-        maxLength:[12, "Aadhar number must contain exact 12 digits!"],
-        minLength:[12, "Aadhar number must contain exact 12 digits!"]
+    phone: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: { len: [10, 10] }
     },
-    dob:{
-        type: Date,
-        required: [true, "Date of Birth is required!"]
+    aadhar: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: { len: [12, 12] }
     },
-    gender:{
-        type: String,
-        required : true,
-        enum: ["Male", "Female", "Others"]
+    dob: {
+        type: DataTypes.DATE,
+        allowNull: false
     },
-    password:{
-        type: String,
-        required:true,
-        minLength: [8, "Password must contain atleat 8 characters!"],
-        select: false
+    gender: {
+        type: DataTypes.ENUM("Male", "Female", "Others"),
+        allowNull: false
     },
-    role:{
-        type: String,
-        required: true,
-        enum: ["Admin", "Patient", "Doctor"]
+    password: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: { len: [8, 255] }
     },
-    doctrDptmnt:{
-        type: String
+    role: {
+        type: DataTypes.ENUM("Admin", "Patient", "Doctor"),
+        allowNull: false
     },
-    doctrAvatar:{
-        public_id: String,
-        url: String
-    }
-    ,
-    // Login throttling
+    doctrDptmnt: {
+        type: DataTypes.STRING
+    },
+    doctrAvatar_public_id: {
+        type: DataTypes.STRING
+    },
+    doctrAvatar_url: {
+        type: DataTypes.STRING
+    },
     loginAttempts: {
-        type: Number,
-        default: 0
+        type: DataTypes.INTEGER,
+        defaultValue: 0
     },
     lockUntil: {
-        type: Date
+        type: DataTypes.DATE
     }
-})
-
-userSchema.pre("save", async function(next){
-    // Only hash the password if it has been modified (or is new)
-    if(!this.isModified("password")){
-        return next();
+}, {
+    timestamps: true,
+    hooks: {
+        beforeSave: async (user) => {
+            if (user.changed('password')) {
+                user.password = await bcrypt.hash(user.password, 10);
+            }
+        }
     }
-    this.password = await bcrypt.hash(this.password,10);
-    next();
-})
+});
 
-userSchema.methods.comparePassword = async function (enteredPassword) {
-    return await bcrypt.compare(enteredPassword,this.password)
-}
+User.prototype.comparePassword = async function (enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.password);
+};
 
-userSchema.methods.generateJsonWebToken = function(){
-    return jwt.sign({id: this._id}, process.env.JWT_SECRET_KEY, {
-         expiresIn: process.env.JWT_EXPIRES,
-        })
-}
-
-export const User = mongoose.model("User",userSchema)
+User.prototype.generateJsonWebToken = function () {
+    return jwt.sign({ id: this.id }, process.env.JWT_SECRET_KEY, {
+        expiresIn: process.env.JWT_EXPIRES,
+    });
+};

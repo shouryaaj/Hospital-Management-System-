@@ -31,7 +31,7 @@ export const patientRegister = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Please Fill Full Form!", 400));
   }
 
-  let user = await User.findOne({ email });
+  let user = await User.findOne({ where: { email } });
   if (user) {
     return next(new ErrorHandler("User already registered with this email!", 400));
   }
@@ -53,7 +53,7 @@ export const patientRegister = catchAsyncErrors(async (req, res, next) => {
 export const login = catchAsyncErrors(async (req, res, next) => {
   const { email, password, confirmPassword, role } = req.body;
   console.log('Login attempt:', { email, role, hasPassword: !!password, hasConfirmPassword: !!confirmPassword });
-  
+
   if (!email || !password || !confirmPassword || !role) {
     return next(new ErrorHandler("Please provide all details!", 400));
   }
@@ -61,10 +61,9 @@ export const login = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Password and Confirm Password Do not Match!", 400));
   }
 
-  const user = await User.findOne({ email }).select("+password +loginAttempts +lockUntil");
+  const user = await User.findOne({ where: { email } });
   console.log('User found:', user ? { email: user.email, role: user.role, requestedRole: role } : 'No user');
 
-  // If user not found, log and return generic error
   if (!user) {
     await SecurityLog.create({ type: 'failed-login', email, ip: req.ip, message: 'User not found' });
     return next(new ErrorHandler("Invalid Password or Email!", 400));
@@ -74,10 +73,11 @@ export const login = catchAsyncErrors(async (req, res, next) => {
   const now = Date.now();
   if (user.lockUntil && user.lockUntil.getTime() > now) {
     console.log('Login blocked: account locked', { email, until: user.lockUntil.toISOString() });
-    await SecurityLog.create({ type: 'failed-login', email, ip: req.ip, user: user._id, message: 'Account locked' });
+    await SecurityLog.create({ type: 'failed-login', email, ip: req.ip, userId: user.id, message: 'Account locked' });
     return next(new ErrorHandler(`Account locked until ${user.lockUntil.toISOString()}`, 403));
   }
 
+  // Sequelize doesn't have model instance methods out of the box unless we define them on the prototype, which we did.
   const isPasswordMatched = await user.comparePassword(password);
 
   if (!isPasswordMatched) {
@@ -89,28 +89,27 @@ export const login = catchAsyncErrors(async (req, res, next) => {
     console.log('Invalid password', { email, attempts: user.loginAttempts, MAX_ATTEMPTS, LOCK_TIME_MS });
     if (user.loginAttempts >= MAX_ATTEMPTS) {
       user.lockUntil = new Date(Date.now() + LOCK_TIME_MS);
-      await SecurityLog.create({ type: 'account-lock', email, ip: req.ip, user: user._id, message: 'Account locked due to too many failed attempts' });
+      await SecurityLog.create({ type: 'account-lock', email, ip: req.ip, userId: user.id, message: 'Account locked due to too many failed attempts' });
       console.log('Account locked', { email, until: user.lockUntil.toISOString() });
-      // Persist lock state then immediately inform client with lock timestamp
-      await user.save({ validateBeforeSave: false });
+      await user.save({ hooks: false });
       return next(new ErrorHandler(`Account locked until ${user.lockUntil.toISOString()}`, 403));
     } else {
-      await SecurityLog.create({ type: 'failed-login', email, ip: req.ip, user: user._id, message: 'Invalid password' });
-      await user.save({ validateBeforeSave: false });
+      await SecurityLog.create({ type: 'failed-login', email, ip: req.ip, userId: user.id, message: 'Invalid password' });
+      await user.save({ hooks: false });
       return next(new ErrorHandler("Invalid Password or Email!", 400));
     }
   }
 
   if (role !== user.role) {
-    await SecurityLog.create({ type: 'failed-login', email, ip: req.ip, user: user._id, message: 'Role mismatch' });
+    await SecurityLog.create({ type: 'failed-login', email, ip: req.ip, userId: user.id, message: 'Role mismatch' });
     return next(new ErrorHandler("User with this role not found!", 400));
   }
 
   // Successful login
   user.loginAttempts = 0;
-  user.lockUntil = undefined;
-  await user.save({ validateBeforeSave: false });
-  await SecurityLog.create({ type: 'successful-login', email, ip: req.ip, user: user._id, message: 'User login' });
+  user.lockUntil = null;
+  await user.save({ hooks: false });
+  await SecurityLog.create({ type: 'successful-login', email, ip: req.ip, userId: user.id, message: 'User login' });
 
   generateToken(user, "User Login Successfully", 200, res);
 });
@@ -131,7 +130,7 @@ export const addNewAdmin = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Please Fill Full Form!", 400));
   }
 
-  const isRegisterd = await User.findOne({ email });
+  const isRegisterd = await User.findOne({ where: { email } });
   if (isRegisterd) {
     return next(
       new ErrorHandler(
@@ -159,7 +158,7 @@ export const addNewAdmin = catchAsyncErrors(async (req, res, next) => {
 });
 
 export const getAllDoctors = catchAsyncErrors(async (req, res, next) => {
-  const doctors = await User.find({ role: "Doctor" });
+  const doctors = await User.findAll({ where: { role: "Doctor" } });
   res.status(200).json({
     success: true,
     doctors,
@@ -239,7 +238,7 @@ export const addNewDoctor = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Please provide full details", 400));
   }
 
-  const isRegistered = await User.findOne({ email });
+  const isRegistered = await User.findOne({ where: { email } });
   if (isRegistered) {
     return next(
       new ErrorHandler(
@@ -270,10 +269,8 @@ export const addNewDoctor = catchAsyncErrors(async (req, res, next) => {
     dob,
     role: "Doctor",
     doctrDptmnt,
-    doctrAvatar: {
-      public_id: cloudinaryResponse.public_id,
-      url: cloudinaryResponse.secure_url,
-    },
+    doctrAvatar_public_id: cloudinaryResponse.public_id,
+    doctrAvatar_url: cloudinaryResponse.secure_url,
   });
   res.status(200).json({
     success: true,

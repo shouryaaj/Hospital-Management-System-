@@ -1,12 +1,28 @@
-import mongoose from "mongoose";
+import { DataTypes } from 'sequelize';
+import { sequelize } from '../database/dbConnection.js';
 
-const securityLogSchema = new mongoose.Schema({
-  type: { type: String, required: true }, // e.g., failed-login
-  email: { type: String },
-  ip: { type: String },
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  message: { type: String },
-  createdAt: { type: Date, default: Date.now }
+export const SecurityLog = sequelize.define('SecurityLog', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  type: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  email: {
+    type: DataTypes.STRING
+  },
+  ip: {
+    type: DataTypes.STRING
+  },
+  userId: {
+    type: DataTypes.UUID
+  },
+  message: {
+    type: DataTypes.TEXT
+  }
+}, {
+  timestamps: true
 });
-
-export const SecurityLog = mongoose.model('SecurityLog', securityLogSchema);

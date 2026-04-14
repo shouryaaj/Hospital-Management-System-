@@ -1,19 +1,17 @@
-import mongoose from "mongoose";
 import dotenv from "dotenv";
+import { sequelize } from "../database/dbConnection.js";
 import { User } from "../models/userSchema.js";
 
 dotenv.config({ path: "./config/config.env" });
 
 const checkAdmins = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI, {
-            dbName: "Life_Care_Hospital"
-        });
+        await sequelize.authenticate();
         console.log("Connected to Database");
 
-        const admins = await User.find({ role: "Admin" });
+        const admins = await User.findAll({ where: { role: "Admin" } });
         console.log(`\nTotal Admins found: ${admins.length}\n`);
-        
+
         if (admins.length > 0) {
             admins.forEach((a, index) => {
                 console.log(`Admin ${index + 1}:`);

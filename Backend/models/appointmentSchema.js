@@ -1,82 +1,81 @@
-import mongoose, { Mongoose } from "mongoose";
-import validator from "validator";
+import { DataTypes } from 'sequelize';
+import { sequelize } from '../database/dbConnection.js';
 
-const appointmentSchema = new mongoose.Schema({
-    firstName:{
-        type: String,
-        required: true,
-        minLength:[3, "First Name must contain atleast 3 characters!"]
+export const Appointment = sequelize.define('Appointment', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
     },
-    lastName:{
-        type: String,
-        required: true,
-        minLength:[3, "Last Name must contain atleast 3 characters!"]
+    firstName: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: { len: [3, 255] }
     },
-    email:{
-        type: String,
-        required: true,
-        validate : [validator.isEmail, "Please provide a valid Email!"]
+    lastName: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: { len: [3, 255] }
     },
-    phone:{
-        type: String,
-        required: true,
-        maxLength:[10, "Phone number must contain exact 10 digits!"],
-        minLength:[10, "Phone number must contain exact 10 digits!"]
+    email: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: { isEmail: true }
     },
-    aadhar:{
-        type: String,
-        required: true,
-        maxLength:[12, "Aadhar number must contain exact 12 digits!"],
-        minLength:[12, "Aadhar number must contain exact 12 digits!"]
+    phone: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: { len: [10, 10] }
     },
-    dob:{
-        type: Date,
-        required: [true, "Date of Birth is required!"]
+    aadhar: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: { len: [12, 12] }
     },
-    gender:{
-        type: String,
-        required : true,
-        enum: ["Male", "Female", "Others"]
+    dob: {
+        type: DataTypes.DATE,
+        allowNull: false
     },
-    appointment_date:{
-        type: String,
-        required: true
+    gender: {
+        type: DataTypes.ENUM("Male", "Female", "Others"),
+        allowNull: false
     },
-    department:{
-        type: String,
-        required: true
+    appointment_date: {
+        type: DataTypes.STRING,
+        allowNull: false
     },
-    doctor:{
-        firstName:{
-            type: String,
-            required: true
-        },
-        lastName:{
-            type: String,
-            required: true
-        }
+    department: {
+        type: DataTypes.STRING,
+        allowNull: false
     },
-    hasVisited:{
-        type: Boolean,
-        default: false
+    doctor_firstName: {
+        type: DataTypes.STRING,
+        allowNull: false
     },
-    doctorId:{
-        type: mongoose.Schema.ObjectId,
-        required: true
+    doctor_lastName: {
+        type: DataTypes.STRING,
+        allowNull: false
     },
-    patientId:{
-        type: mongoose.Schema.ObjectId,
-        required: true
+    hasVisited: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     },
-    address:{
-        type: String,
-        required: true
+    doctorId: {
+        type: DataTypes.UUID,
+        allowNull: false
     },
-    status:{
-        type: String,
-        enum: ["Pending", "Accepted", "Rejected"],
-        default: "Pending"
+    patientId: {
+        type: DataTypes.UUID,
+        allowNull: false
+    },
+    address: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    status: {
+        type: DataTypes.ENUM("Pending", "Accepted", "Rejected"),
+        defaultValue: "Pending"
     }
-})
-
-export const Appointment = mongoose.model("Appointment", appointmentSchema);
+}, {
+    timestamps: true
+});

@@ -1,11 +1,21 @@
-import mongoose from "mongoose";
+import { Sequelize } from 'sequelize';
+import { config } from 'dotenv';
+config({ path: "./config/config.env" });
 
-export const dbConnection = () => {
-    mongoose.connect(process.env.MONGO_URI, {
-        dbName: "Life_Care_Hospital"
-    }).then(() => {
-        console.log("Connected to Database");
-    }).catch(err => {
-        console.log(`Some error occured while connecting to Database: ${err}`);
-    })
-}
+export const sequelize = new Sequelize(process.env.PG_URI, {
+    dialect: 'postgres',
+    logging: false, // Set to console.log to see SQL queries
+});
+
+export const dbConnection = async () => {
+    try {
+        await sequelize.authenticate();
+        console.log("Connected to PostgreSQL Database");
+        
+        // Sync models. In production, use migrations instead of sync()
+        await sequelize.sync({ alter: true });
+        console.log("Database synced");
+    } catch (err) {
+        console.log(`Some error occurred while connecting to Database: ${err}`);
+    }
+};

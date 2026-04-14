@@ -1,18 +1,17 @@
-import mongoose from "mongoose";
 import dotenv from "dotenv";
+import { sequelize } from "../database/dbConnection.js";
 import { User } from "../models/userSchema.js";
 
 dotenv.config({ path: "./config/config.env" });
 
 const createAdmin = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI, {
-            dbName: "Life_Care_Hospital"
-        });
+        await sequelize.authenticate();
+        await sequelize.sync({ alter: true });
         console.log("Connected to Database");
 
         // Check if admin already exists
-        const existingAdmin = await User.findOne({ email: "admin@hospital.com" });
+        const existingAdmin = await User.findOne({ where: { email: "admin@hospital.com" } });
         if (existingAdmin) {
             console.log("\nAdmin with email admin@hospital.com already exists!");
             console.log("Email: admin@hospital.com");

@@ -11,7 +11,6 @@ import appointmentRouter from "./router/appointmentRouter.js"
 
 // Security middleware
 import helmet from "helmet";
-import mongoSanitize from "express-mongo-sanitize";
 import xss from "xss-clean";
 
 const app = express();
@@ -23,13 +22,12 @@ config({ path: "./config/config.env" })
 app.use(helmet());
 
 // Body sanitization
-app.use(mongoSanitize());
 app.use(xss());
 
 app.use(cors(
     {
         origin: [
-            process.env.FRONTEND_PATIENT, 
+            process.env.FRONTEND_PATIENT,
             process.env.FRONTEND_ADMIN,
             'http://localhost:5173',
             'http://localhost:5174',
