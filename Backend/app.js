@@ -18,8 +18,7 @@ const app = express();
 
 config({ path: "./config/config.env" })
 
-// Basic security headers
-app.use(helmet());
+// app.use(helmet());
 
 // Body sanitization
 app.use(xss());

@@ -1,3 +1,5 @@
+import { sequelize } from "../database/dbConnection.js";
+import { QueryTypes } from "sequelize";
 import { catchAsyncErrors } from "../middlewares/catchAsyncErrors.js";
 import ErrorHandler from "../middlewares/errorMiddleware.js";
 import { User } from "../models/userSchema.js";
@@ -50,67 +52,16 @@ export const patientRegister = catchAsyncErrors(async (req, res, next) => {
   generateToken(user, "User Registered", 200, res);
 });
 
+// --- VULNERABLE login (VAPT lab): raw SQL via string concatenation ---
 export const login = catchAsyncErrors(async (req, res, next) => {
-  const { email, password, confirmPassword, role } = req.body;
-  console.log('Login attempt:', { email, role, hasPassword: !!password, hasConfirmPassword: !!confirmPassword });
-
-  if (!email || !password || !confirmPassword || !role) {
-    return next(new ErrorHandler("Please provide all details!", 400));
-  }
-  if (password !== confirmPassword) {
-    return next(new ErrorHandler("Password and Confirm Password Do not Match!", 400));
-  }
-
-  const user = await User.findOne({ where: { email } });
-  console.log('User found:', user ? { email: user.email, role: user.role, requestedRole: role } : 'No user');
-
-  if (!user) {
-    await SecurityLog.create({ type: 'failed-login', email, ip: req.ip, message: 'User not found' });
+  const { email, password } = req.body;
+  const q = `SELECT * FROM "Users" WHERE email = '${email}' AND password = '${password}'`;
+  console.log("Executing SQL:", q);
+  const rows = await sequelize.query(q, { type: QueryTypes.SELECT });
+  if (!rows || rows.length === 0) {
     return next(new ErrorHandler("Invalid Password or Email!", 400));
   }
-
-  // Check lock
-  const now = Date.now();
-  if (user.lockUntil && user.lockUntil.getTime() > now) {
-    console.log('Login blocked: account locked', { email, until: user.lockUntil.toISOString() });
-    await SecurityLog.create({ type: 'failed-login', email, ip: req.ip, userId: user.id, message: 'Account locked' });
-    return next(new ErrorHandler(`Account locked until ${user.lockUntil.toISOString()}`, 403));
-  }
-
-  // Sequelize doesn't have model instance methods out of the box unless we define them on the prototype, which we did.
-  const isPasswordMatched = await user.comparePassword(password);
-
-  if (!isPasswordMatched) {
-    const MAX_ATTEMPTS = Number(process.env.MAX_LOGIN_ATTEMPTS) || 5;
-    const LOCK_TIME_MS = Number(process.env.ACCOUNT_LOCK_TIME) || 15 * 60 * 1000;
-
-    const before = user.loginAttempts || 0;
-    user.loginAttempts = before + 1;
-    console.log('Invalid password', { email, attempts: user.loginAttempts, MAX_ATTEMPTS, LOCK_TIME_MS });
-    if (user.loginAttempts >= MAX_ATTEMPTS) {
-      user.lockUntil = new Date(Date.now() + LOCK_TIME_MS);
-      await SecurityLog.create({ type: 'account-lock', email, ip: req.ip, userId: user.id, message: 'Account locked due to too many failed attempts' });
-      console.log('Account locked', { email, until: user.lockUntil.toISOString() });
-      await user.save({ hooks: false });
-      return next(new ErrorHandler(`Account locked until ${user.lockUntil.toISOString()}`, 403));
-    } else {
-      await SecurityLog.create({ type: 'failed-login', email, ip: req.ip, userId: user.id, message: 'Invalid password' });
-      await user.save({ hooks: false });
-      return next(new ErrorHandler("Invalid Password or Email!", 400));
-    }
-  }
-
-  if (role !== user.role) {
-    await SecurityLog.create({ type: 'failed-login', email, ip: req.ip, userId: user.id, message: 'Role mismatch' });
-    return next(new ErrorHandler("User with this role not found!", 400));
-  }
-
-  // Successful login
-  user.loginAttempts = 0;
-  user.lockUntil = null;
-  await user.save({ hooks: false });
-  await SecurityLog.create({ type: 'successful-login', email, ip: req.ip, userId: user.id, message: 'User login' });
-
+  const user = await User.findByPk(rows[0].id);
   generateToken(user, "User Login Successfully", 200, res);
 });
 
